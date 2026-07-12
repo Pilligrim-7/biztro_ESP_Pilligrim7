@@ -506,7 +506,6 @@ export const updateItem = authMemberActionClient
         description,
         status,
         categoryId,
-        organizationId,
         variants,
         featured,
         allergens,
@@ -514,9 +513,36 @@ export const updateItem = authMemberActionClient
         translations,
         updatePublishedMenus,
         rememberPublishedChoice
-      }
+      },
+      ctx: { member }
     }) => {
+      const currentOrgId = member.organizationId
+
+      if (!currentOrgId) {
+        return {
+          failure: {
+            reason: "No se pudo obtener la organización actual"
+          }
+        }
+      }
+
       try {
+        // Ensure the item belongs to the caller's organization before mutating.
+        // Without this scope any authenticated member could edit another
+        // organization's item by supplying an arbitrary id (IDOR).
+        const existingItem = await prisma.menuItem.findFirst({
+          where: { id, organizationId: currentOrgId },
+          select: { id: true }
+        })
+
+        if (!existingItem) {
+          return {
+            failure: {
+              reason: "Producto no encontrado"
+            }
+          }
+        }
+
         const item = await prisma.menuItem.update({
           where: { id },
           data: {
@@ -604,12 +630,12 @@ export const updateItem = authMemberActionClient
           }
         })
 
-        updateTag(`menu-items-${organizationId}`)
+        updateTag(`menu-items-${currentOrgId}`)
         updateTag(`menu-item-${id}`)
-        updateTag(`translations-${organizationId}`)
+        updateTag(`translations-${currentOrgId}`)
 
         const sync = await executeMenuSyncWithPreference({
-          organizationId: organizationId ?? "",
+          organizationId: currentOrgId,
           updatePublishedMenus,
           rememberPublishedChoice
         })
@@ -682,8 +708,23 @@ export const bulkUpdateItems = authMemberActionClient
       const failed: Array<{ id: string; reason: string }> = []
 
       try {
+        // Restrict the batch to items owned by the caller's organization so a
+        // member cannot update another organization's items by id (IDOR).
+        const ownedItems = await prisma.menuItem.findMany({
+          where: {
+            id: { in: items.map(item => item.id) },
+            organizationId: currentOrgId
+          },
+          select: { id: true }
+        })
+        const ownedItemIds = new Set(ownedItems.map(item => item.id))
+
         for (const item of items) {
           const itemId = item.id
+          if (!ownedItemIds.has(itemId)) {
+            failed.push({ id: itemId, reason: "Producto no encontrado" })
+            continue
+          }
           try {
             await prisma.menuItem.update({
               where: { id: itemId },
@@ -785,14 +826,33 @@ export const deleteItem = authMemberActionClient
       organizationId: z.string()
     })
   )
-  .action(async ({ parsedInput: { id, organizationId } }) => {
+  .action(async ({ parsedInput: { id, organizationId }, ctx: { member } }) => {
+    const currentOrgId = member.organizationId
+
+    if (!currentOrgId) {
+      return {
+        failure: {
+          reason: "No se pudo obtener la organización actual"
+        }
+      }
+    }
+
     try {
-      // Delete the image from the storage if exists
-      const item = await prisma.menuItem.findUnique({
-        where: { id }
+      // Scope the lookup to the caller's organization so a member cannot delete
+      // another organization's item (and its stored image) by id (IDOR).
+      const item = await prisma.menuItem.findFirst({
+        where: { id, organizationId: currentOrgId }
       })
 
-      if (item?.image) {
+      if (!item) {
+        return {
+          failure: {
+            reason: "Producto no encontrado"
+          }
+        }
+      }
+
+      if (item.image) {
         // Delete the image from the storage
         await R2.send(
           new DeleteObjectCommand({
@@ -901,9 +961,35 @@ export const updateCategory = authMemberActionClient
         organizationId,
         updatePublishedMenus,
         rememberPublishedChoice
-      }
+      },
+      ctx: { member }
     }) => {
+      const currentOrgId = member.organizationId
+
+      if (!currentOrgId) {
+        return {
+          failure: {
+            reason: "No se pudo obtener la organización actual"
+          }
+        }
+      }
+
       try {
+        // Confirm the category belongs to the caller's organization before
+        // renaming it so a member cannot edit another org's category (IDOR).
+        const existingCategory = await prisma.category.findFirst({
+          where: { id, organizationId: currentOrgId },
+          select: { id: true }
+        })
+
+        if (!existingCategory) {
+          return {
+            failure: {
+              reason: "Categoría no encontrada"
+            }
+          }
+        }
+
         const category = await prisma.category.update({
           where: { id },
           data: {
@@ -967,9 +1053,33 @@ export const deleteCategory = authMemberActionClient
       organizationId: z.string()
     })
   )
-  .action(async ({ parsedInput: { id, organizationId } }) => {
-    // const currentOrgId = member.organizationId
+  .action(async ({ parsedInput: { id, organizationId }, ctx: { member } }) => {
+    const currentOrgId = member.organizationId
+
+    if (!currentOrgId) {
+      return {
+        failure: {
+          reason: "No se pudo obtener la organización actual"
+        }
+      }
+    }
+
     try {
+      // Confirm the category belongs to the caller's organization so a member
+      // cannot delete another org's category by id (IDOR).
+      const existingCategory = await prisma.category.findFirst({
+        where: { id, organizationId: currentOrgId },
+        select: { id: true }
+      })
+
+      if (!existingCategory) {
+        return {
+          failure: {
+            reason: "Categoría no encontrada"
+          }
+        }
+      }
+
       // Check if the category is being used by any item
       const items = await prisma.menuItem.findMany({
         where: { categoryId: id }
@@ -1022,47 +1132,74 @@ export const deleteCategory = authMemberActionClient
  */
 export const createVariant = authMemberActionClient
   .inputSchema(variantSchema)
-  .action(async ({ parsedInput: { name, price, menuItemId } }) => {
-    if (!menuItemId) {
-      return {
-        failure: {
-          reason: "No se pudo obtener el producto asociado"
+  .action(
+    async ({ parsedInput: { name, price, menuItemId }, ctx: { member } }) => {
+      if (!menuItemId) {
+        return {
+          failure: {
+            reason: "No se pudo obtener el producto asociado"
+          }
         }
       }
-    }
 
-    try {
-      const variant = await prisma.variant.create({
-        data: {
-          name,
-          price,
-          menuItemId
+      const currentOrgId = member.organizationId
+
+      if (!currentOrgId) {
+        return {
+          failure: {
+            reason: "No se pudo obtener la organización actual"
+          }
         }
-      })
+      }
 
-      updateTag(`menu-item-${menuItemId}`)
-      return { success: variant }
-    } catch (error) {
-      let message
-      if (typeof error === "string") {
-        message = error
-      } else if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        console.error(error)
-        Sentry.captureException(error, {
-          tags: { section: "item-mutations", operation: "createVariant" },
-          extra: { menuItemId, errorCode: error.code }
+      try {
+        // Ensure the parent item belongs to the caller's organization so a member
+        // cannot attach a variant to another org's item by id (IDOR).
+        const parentItem = await prisma.menuItem.findFirst({
+          where: { id: menuItemId, organizationId: currentOrgId },
+          select: { id: true }
         })
-        message = error.message
-      } else if (error instanceof Error) {
-        message = error.message
-      }
-      return {
-        failure: {
-          reason: message
+
+        if (!parentItem) {
+          return {
+            failure: {
+              reason: "Producto no encontrado"
+            }
+          }
+        }
+
+        const variant = await prisma.variant.create({
+          data: {
+            name,
+            price,
+            menuItemId
+          }
+        })
+
+        updateTag(`menu-item-${menuItemId}`)
+        return { success: variant }
+      } catch (error) {
+        let message
+        if (typeof error === "string") {
+          message = error
+        } else if (error instanceof Prisma.PrismaClientKnownRequestError) {
+          console.error(error)
+          Sentry.captureException(error, {
+            tags: { section: "item-mutations", operation: "createVariant" },
+            extra: { menuItemId, errorCode: error.code }
+          })
+          message = error.message
+        } else if (error instanceof Error) {
+          message = error.message
+        }
+        return {
+          failure: {
+            reason: message
+          }
         }
       }
     }
-  })
+  )
 
 /**
  * Deletes a variant.
@@ -1078,8 +1215,33 @@ export const deleteVariant = authMemberActionClient
       menuItemId: z.string()
     })
   )
-  .action(async ({ parsedInput: { id, menuItemId } }) => {
+  .action(async ({ parsedInput: { id, menuItemId }, ctx: { member } }) => {
+    const currentOrgId = member.organizationId
+
+    if (!currentOrgId) {
+      return {
+        failure: {
+          reason: "No se pudo obtener la organización actual"
+        }
+      }
+    }
+
     try {
+      // Ensure the variant's parent item belongs to the caller's organization
+      // so a member cannot delete another org's variant by id (IDOR).
+      const variant = await prisma.variant.findFirst({
+        where: { id, menuItem: { organizationId: currentOrgId } },
+        select: { id: true }
+      })
+
+      if (!variant) {
+        return {
+          failure: {
+            reason: "Variante no encontrada"
+          }
+        }
+      }
+
       await prisma.variant.delete({
         where: { id }
       })
@@ -1129,12 +1291,42 @@ export const bulkUpdateCategory = authMemberActionClient
         organizationId,
         updatePublishedMenus,
         rememberPublishedChoice
-      }
+      },
+      ctx: { member }
     }) => {
+      const currentOrgId = member.organizationId
+
+      if (!currentOrgId) {
+        return {
+          failure: {
+            reason: "No se pudo obtener la organización actual"
+          }
+        }
+      }
+
       try {
+        // Scope the update to the caller's organization so a member cannot
+        // reassign another org's items to a category by id (IDOR). The target
+        // category is also verified to belong to the same organization.
+        if (categoryId) {
+          const targetCategory = await prisma.category.findFirst({
+            where: { id: categoryId, organizationId: currentOrgId },
+            select: { id: true }
+          })
+
+          if (!targetCategory) {
+            return {
+              failure: {
+                reason: "Categoría no encontrada"
+              }
+            }
+          }
+        }
+
         await prisma.menuItem.updateMany({
           where: {
-            id: { in: ids }
+            id: { in: ids },
+            organizationId: currentOrgId
           },
           data: {
             categoryId
@@ -1179,12 +1371,25 @@ export const bulkDeleteItems = authMemberActionClient
       organizationId: z.string()
     })
   )
-  .action(async ({ parsedInput: { ids, organizationId } }) => {
+  .action(async ({ parsedInput: { ids, organizationId }, ctx: { member } }) => {
+    const currentOrgId = member.organizationId
+
+    if (!currentOrgId) {
+      return {
+        failure: {
+          reason: "No se pudo obtener la organización actual"
+        }
+      }
+    }
+
     try {
-      // First get all items to delete their images
+      // Scope to the caller's organization so a member cannot delete another
+      // org's items (and their stored images) by id (IDOR).
       const items = await prisma.menuItem.findMany({
-        where: { id: { in: ids } }
+        where: { id: { in: ids }, organizationId: currentOrgId }
       })
+
+      const ownedItemIds = items.map(item => item.id)
 
       // Delete images from storage if they exist
       await Promise.all(
@@ -1203,7 +1408,7 @@ export const bulkDeleteItems = authMemberActionClient
       // Delete all items
       await prisma.menuItem.deleteMany({
         where: {
-          id: { in: ids }
+          id: { in: ownedItemIds }
         }
       })
 
@@ -1244,12 +1449,26 @@ export const bulkToggleFeature = authMemberActionClient
         organizationId,
         updatePublishedMenus,
         rememberPublishedChoice
-      }
+      },
+      ctx: { member }
     }) => {
+      const currentOrgId = member.organizationId
+
+      if (!currentOrgId) {
+        return {
+          failure: {
+            reason: "No se pudo obtener la organización actual"
+          }
+        }
+      }
+
       try {
+        // Scope to the caller's organization so a member cannot toggle the
+        // featured flag on another org's items by id (IDOR).
         await prisma.menuItem.updateMany({
           where: {
-            id: { in: ids }
+            id: { in: ids },
+            organizationId: currentOrgId
           },
           data: {
             featured
