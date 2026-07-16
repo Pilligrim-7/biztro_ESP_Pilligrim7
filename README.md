@@ -29,6 +29,7 @@ It uses a modern TypeScript + React stack with Prisma for persistence and Tailwi
 - `src/env.mjs` — environment schema and required variables
 - `prisma.config.ts` — Prisma adapter config
 - `prisma/schema.prisma` — database schema
+- `docs/menu/public-menu-workflow.md` — menu draft, publish, public render, sync, and cache workflow
 - `docs/deployment/subdomain-routing.md` — Cloudflare + Vercel host-based subdomain deployment guide
 - `AGENTS.md` — repo conventions and agent rules
 - `src/app/config.ts` — application limits and defaults
@@ -95,5 +96,6 @@ npm run dev
 
 - Host-based public menu URLs (`https://slug.biztro.co`) are documented in `docs/deployment/subdomain-routing.md`.
 - The current production approach uses Cloudflare wildcard DNS + TLS and a Cloudflare Worker proxying to Vercel.
+- Public menu data flow, publish semantics, catalog sync, and cache invalidation are documented in `docs/menu/public-menu-workflow.md`.
 
 For contributor guidance and agent rules see `AGENTS.md`.
