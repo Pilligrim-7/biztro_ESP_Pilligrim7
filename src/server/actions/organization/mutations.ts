@@ -424,9 +424,12 @@ export const deleteOrganization = authActionClient
           }
         }
       } else {
-        await deleteOrganizationAssetsFromR2(id)
-
-        // Delete organization through Better Auth server API and revalidate cache
+        // Delete the organization through Better Auth FIRST. This call is the
+        // authoritative ownership/permission gate (only owners/admins may
+        // delete) and it can still fail (unauthorized caller, transient DB or
+        // network error). Removing R2 assets before it would irreversibly wipe
+        // a live organization's media whenever this deletion fails or is
+        // rejected, so ordering matters here.
         const deleted = await auth.api.deleteOrganization({
           body: { organizationId: id },
           headers: await headers()
@@ -438,6 +441,21 @@ export const deleteOrganization = authActionClient
               reason: "No se pudo eliminar la organización"
             }
           }
+        }
+
+        // Organization is gone; now clean up its storage. This is best-effort:
+        // a failure here only leaves orphaned objects, so log and continue
+        // instead of surfacing an error for an already-deleted organization.
+        try {
+          await deleteOrganizationAssetsFromR2(id)
+        } catch (err) {
+          Sentry.captureException(err, {
+            tags: {
+              section: "organization-mutations",
+              operation: "deleteR2Assets"
+            },
+            extra: { organizationId: id }
+          })
         }
 
         updateTag("organizations-list")
