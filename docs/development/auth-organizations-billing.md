@@ -32,7 +32,7 @@ All auth HTTP traffic flows through:
 
 ```ts
 // src/app/api/auth/[...all]/route.ts
-export const { GET, POST } = toNextJsHandler(auth)
+export const { GET, POST } = toNextJsHandler(auth);
 ```
 
 The `auth` object is built in `src/lib/auth.ts` with:
@@ -96,13 +96,13 @@ The session create hook sets `activeOrganizationId` when a user already belongs
 to an organization:
 
 ```ts
-const organization = await getActiveOrganization(String(session.userId))
+const organization = await getActiveOrganization(String(session.userId));
 return {
   data: {
     ...session,
-    activeOrganizationId: organization?.id
-  }
-}
+    activeOrganizationId: organization?.id,
+  },
+};
 ```
 
 `getActiveOrganization(userId)` currently returns the first Prisma `Member`
@@ -142,8 +142,8 @@ Client-side `NewOrgForm` then calls:
 
 ```ts
 await authClient.organization.setActive({
-  organizationId: organization.id
-})
+  organizationId: organization.id,
+});
 ```
 
 This keeps the client Better Auth state aligned with the server-created
