@@ -30,10 +30,22 @@ These files are part of the host-based routing support:
   - Keeps reserved hosts such as `preview` and `www` out of tenant routing.
 - `src/app/[subdomain]/page.tsx`
   - Serves the published menu for a tenant slug.
+  - Generates static params for active tenant slugs during build.
 - `src/lib/utils.ts`
   - `getPublishedMenuUrl()` generates `https://slug.biztro.co` in production.
 - `src/components/menu-editor/menu-publish.tsx`
   - Uses the published subdomain URL for links, copy actions, and QR generation.
+
+### Build-time static params
+
+`src/app/[subdomain]/page.tsx` calls `getAllActiveOrganizations()` from
+`generateStaticParams()` and pre-renders active, trialing, and sponsored tenant
+slugs.
+
+When the database has no active organizations at build time, the route returns a
+single `_placeholder` param. This keeps the dynamic route buildable in empty
+environments. `_placeholder` is not a tenant slug; at request time the page still
+looks up the organization and returns `notFound()` when no published menu exists.
 
 ## Cloudflare DNS Configuration
 
