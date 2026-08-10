@@ -139,8 +139,8 @@ authClient.subscription.upgrade({
   annual: billingInterval === "yearly",
   referenceId: activeOrganization?.id,
   successUrl: "/dashboard/settings/billing",
-  cancelUrl: "/dashboard/settings/billing"
-})
+  cancelUrl: "/dashboard/settings/billing",
+});
 ```
 
 Customer portal access goes through the server action
