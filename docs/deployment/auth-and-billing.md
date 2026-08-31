@@ -16,6 +16,9 @@ and Stripe billing paths. Keep it aligned with `src/lib/auth.ts`,
   and active organization session state.
 - The Better Auth Stripe plugin owns customer creation, subscription checkout,
   subscription reads, billing portal URLs, and Stripe webhook handling.
+- The Stripe server client in `src/lib/auth.ts` uses
+  `apiVersion: Stripe.API_VERSION`, so Stripe API-version changes follow the
+  installed Stripe SDK version.
 - The dashboard billing page is available at
   `/dashboard/settings/billing` and only renders subscription controls for
   organization owners while the `FLAGS_ENABLE_SUBSCRIPTIONS=1` flag is enabled.
@@ -73,6 +76,9 @@ Operational constraints:
   `NEXT_PUBLIC_STRIPE_PRICE_BASIC` for the Stripe plugin's `BASIC` plan, while
   `src/env.mjs` validates only the PRO price IDs. Verify that value explicitly
   when changing Stripe plan setup or env validation.
+- Review Stripe webhook payload compatibility when upgrading the `stripe`
+  package, because the app intentionally uses the SDK's current
+  `Stripe.API_VERSION` instead of pinning a date string in application code.
 
 ## Local development workflow
 
