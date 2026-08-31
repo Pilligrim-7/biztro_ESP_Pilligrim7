@@ -22,18 +22,18 @@ and Stripe billing paths. Keep it aligned with `src/lib/auth.ts`,
 
 ## Source-of-truth files
 
-| Area | Files |
-| --- | --- |
-| Auth server config | `src/lib/auth.ts` |
-| Auth client plugins | `src/lib/auth-client.ts` |
-| Env validation | `src/env.mjs` |
-| Base URL helpers | `src/lib/utils.ts` |
-| Auth API route | `src/app/api/auth/[...all]/route.ts` |
-| Billing actions | `src/server/actions/subscriptions/*` |
-| Pro entitlement checks | `src/server/actions/user/queries.ts` |
-| Billing UI | `src/app/dashboard/settings/billing/*` |
-| Billing/domain types | `src/lib/types/billing.ts`, `prisma/models/auth.prisma` |
-| Waitlist writes | `src/server/actions/organization/mutations.ts` |
+| Area                   | Files                                                   |
+| ---------------------- | ------------------------------------------------------- |
+| Auth server config     | `src/lib/auth.ts`                                       |
+| Auth client plugins    | `src/lib/auth-client.ts`                                |
+| Env validation         | `src/env.mjs`                                           |
+| Base URL helpers       | `src/lib/utils.ts`                                      |
+| Auth API route         | `src/app/api/auth/[...all]/route.ts`                    |
+| Billing actions        | `src/server/actions/subscriptions/*`                    |
+| Pro entitlement checks | `src/server/actions/user/queries.ts`                    |
+| Billing UI             | `src/app/dashboard/settings/billing/*`                  |
+| Billing/domain types   | `src/lib/types/billing.ts`, `prisma/models/auth.prisma` |
+| Waitlist writes        | `src/server/actions/organization/mutations.ts`          |
 
 ## Environment configuration
 
@@ -155,8 +155,8 @@ authClient.subscription.upgrade({
   annual: billingInterval === "yearly",
   referenceId: activeOrganization?.id,
   successUrl: "/dashboard/settings/billing",
-  cancelUrl: "/dashboard/settings/billing"
-})
+  cancelUrl: "/dashboard/settings/billing",
+});
 ```
 
 Constraints:
