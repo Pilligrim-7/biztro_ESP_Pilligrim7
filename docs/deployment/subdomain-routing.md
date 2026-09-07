@@ -30,6 +30,11 @@ These files are part of the host-based routing support:
   - Keeps reserved hosts such as `preview` and `www` out of tenant routing.
 - `src/app/[subdomain]/page.tsx`
   - Serves the published menu for a tenant slug.
+  - Pre-renders active, trialing, and sponsored organizations from
+    `getAllActiveOrganizations()`.
+  - Returns a `_placeholder` static param when no active organizations exist so
+    empty databases still have a deterministic generated path. The placeholder
+    is not a tenant slug and still 404s if requested.
 - `src/lib/utils.ts`
   - `getPublishedMenuUrl()` generates `https://slug.biztro.co` in production.
 - `src/components/menu-editor/menu-publish.tsx`
@@ -259,6 +264,8 @@ After deploying the Worker and DNS changes, validate the following:
 - `https://slug.biztro.co/some-path` resolves through the same tenant.
 - Static assets still load correctly.
 - QR codes and publish links use `https://slug.biztro.co`.
+- Builds with an empty active-organization database still complete, and direct
+  requests to `/_placeholder` return 404.
 - Cloudflare `Edge Certificates` shows an active primary certificate, not only `Backup` rows.
 - The apex DNS record for `biztro.co` matches the current Vercel domain configuration.
 
