@@ -81,7 +81,7 @@ bun run dev
 - `bun run prisma:migrate` — apply Prisma migrations (deploy)
 - `bun run db:dev` — start local Turso dev DB
 - `bun run email` — run email dev tooling
-- `bun run build:content` — build Contentlayer content
+- `bun run build:content` — legacy standalone content command; current content generation runs through the Next Content Collections integration during `dev`/`build`
 - `bun run stripe:listen` — forward Stripe webhooks to local server
 
 ## Conventions & notes
