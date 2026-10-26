@@ -30,6 +30,7 @@ It uses a modern TypeScript + React stack with Prisma for persistence and Tailwi
 - `prisma.config.ts` — Prisma adapter config
 - `prisma/schema.prisma` — database schema
 - `docs/deployment/subdomain-routing.md` — Cloudflare + Vercel host-based subdomain deployment guide
+- `docs/development/billing-subscriptions.md` — Better Auth + Stripe billing workflow and troubleshooting
 - `AGENTS.md` — repo conventions and agent rules
 - `src/app/config.ts` — application limits and defaults
 
