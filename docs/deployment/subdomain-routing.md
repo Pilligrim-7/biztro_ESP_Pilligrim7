@@ -35,6 +35,38 @@ These files are part of the host-based routing support:
 - `src/components/menu-editor/menu-publish.tsx`
   - Uses the published subdomain URL for links, copy actions, and QR generation.
 
+### Build-time static params
+
+`src/app/[subdomain]/page.tsx` generates static params from active organizations
+returned by `getAllActiveOrganizations()`. When no active organizations exist,
+it returns one placeholder param:
+
+```ts
+const staticParams = [{ subdomain: "_placeholder" }]
+```
+
+This keeps the dynamic route buildable in empty databases. The placeholder is
+not a real tenant and should 404 at runtime unless an organization with that
+slug is explicitly created.
+
+### Active menu resolution
+
+Public menu routing only serves organizations whose status is:
+
+- `ACTIVE`
+- `TRIALING`
+- `SPONSORED`
+
+For an eligible organization, `getActiveMenuByOrganizationSlug()` resolves the
+menu in this order:
+
+1. Use `organization.activeMenuId` when it points to a published menu for that
+   organization.
+2. Otherwise fall back to the most recently published menu, ordered by
+   `publishedAt` and then `updatedAt`.
+
+If no eligible organization or published menu exists, the route returns 404.
+
 ## Cloudflare DNS Configuration
 
 Create or update the wildcard DNS record:
@@ -259,6 +291,8 @@ After deploying the Worker and DNS changes, validate the following:
 - `https://slug.biztro.co/some-path` resolves through the same tenant.
 - Static assets still load correctly.
 - QR codes and publish links use `https://slug.biztro.co`.
+- Empty databases still build because `[subdomain]` emits the `_placeholder`
+  static param.
 - Cloudflare `Edge Certificates` shows an active primary certificate, not only `Backup` rows.
 - The apex DNS record for `biztro.co` matches the current Vercel domain configuration.
 
@@ -285,6 +319,21 @@ Good:
 ```js
 const BYPASS_EXACT = new Set(["/favicon.ico"])
 ```
+
+### Tenant subdomain returns 404
+
+Cause:
+
+- The organization status is not `ACTIVE`, `TRIALING`, or `SPONSORED`.
+- No published menu exists for the organization.
+- `activeMenuId` points to a draft or a menu from another organization, and
+  there is no published fallback menu.
+
+Fix:
+
+- Confirm the organization's billing/status state.
+- Publish a menu for the organization.
+- If multiple menus are published, set the intended menu as the active menu.
 
 ### Reserved hosts break or route to tenant content
 
