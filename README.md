@@ -30,6 +30,7 @@ It uses a modern TypeScript + React stack with Prisma for persistence and Tailwi
 - `prisma.config.ts` — Prisma adapter config
 - `prisma/schema.prisma` — database schema
 - `docs/deployment/subdomain-routing.md` — Cloudflare + Vercel host-based subdomain deployment guide
+- `docs/development/billing-subscriptions.md` — Better Auth + Stripe billing workflow and troubleshooting
 - `AGENTS.md` — repo conventions and agent rules
 - `src/app/config.ts` — application limits and defaults
 
@@ -39,18 +40,19 @@ Follow these steps to configure and run the project locally.
 
 1. Install dependencies
 
-```pwsh
-npm install
+```sh
+bun install
 ```
 
 2. Generate Prisma client
 
 Lifecycle scripts run `prisma generate` automatically, but you can run it manually:
 
-```pwsh
-npm run predev
+```sh
+# Generate Prisma client without starting the dev server
+bun run predev
 # or
-npx prisma generate
+bunx prisma generate
 ```
 
 3. Configure environment variables
@@ -60,28 +62,28 @@ npx prisma generate
 
 4. Start a local dev database
 
-```pwsh
-npm run db:dev
+```sh
+bun run db:dev
 ```
 
 This starts a local Turso development database using `local.db`.
 
 5. Start the dev server
 
-```pwsh
-npm run dev
+```sh
+bun run dev
 ```
 
 6. Common scripts
 
-- `npm run dev` — start dev server
-- `npm run build` — production build
-- `npm run start` — start production server
-- `npm run prisma:migrate` — apply Prisma migrations (deploy)
-- `npm run db:dev` — start local Turso dev DB
-- `npm run email` — run email dev tooling
-- `npm run build:content` — build Contentlayer content
-- `npm run stripe:listen` — forward Stripe webhooks to local server
+- `bun run dev` — start dev server
+- `bun run build` — production build
+- `bun run start` — start production server
+- `bun run prisma:migrate` — apply Prisma migrations (deploy)
+- `bun run db:dev` — start local Turso dev DB
+- `bun run email` — run email dev tooling
+- `bun run build:content` — build Contentlayer content
+- `bun run stripe:listen` — forward Stripe webhooks to local server
 
 ## Conventions & notes
 
@@ -95,5 +97,6 @@ npm run dev
 
 - Host-based public menu URLs (`https://slug.biztro.co`) are documented in `docs/deployment/subdomain-routing.md`.
 - The current production approach uses Cloudflare wildcard DNS + TLS and a Cloudflare Worker proxying to Vercel.
+- Subscription setup, local Stripe webhooks, entitlements, and common billing failures are documented in `docs/development/billing-subscriptions.md`.
 
 For contributor guidance and agent rules see `AGENTS.md`.
